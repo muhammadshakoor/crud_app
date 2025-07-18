@@ -8,6 +8,7 @@ import { XCircle } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import api from '../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
+import BulkUploadModal from './BulkUploadModal';
 
 const ProductList: React.FC = () => {
   const { token, logout } = useAuth();
@@ -17,6 +18,7 @@ const ProductList: React.FC = () => {
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,6 +131,7 @@ const ProductList: React.FC = () => {
   //     setLoading(false);
   //   }
   // };
+
   const navigate = useNavigate();
   const fetchProducts = async () => {
     try {
@@ -163,9 +166,10 @@ const ProductList: React.FC = () => {
       setUniqueBrands(brands || []);
       setUniqueSuppliers(suppliers || []);
     } catch (err: any) {
-      if (err.response?.status === 401) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
         alert('Session expired. Please log in again.');
         logout();
+        navigate('/login') // Redirect here
       } else {
         console.error('Error fetching products:', err);
         setError('Failed to fetch products');
@@ -207,12 +211,16 @@ const ProductList: React.FC = () => {
   // if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
 
   return (
-    <div className="bg-white shadow-md rounded-lg overflow-hidden p-4">
-      <h1 className="text-3xl font-bold text-white mb-4 text-left bg-gray-500 p-3 rounded">
+    <div className="bg-white shadow-md rounded-lg overflow-hidden p-4 ">
+      {/* <h1 className="text-3xl font-bold text-white mb-4 text-left bg-gray-500 p-3 rounded"> */}
+      <h1 className="text-3xl font-extrabold text-gray-800 mb-6 flex items-center gap-2">
+        <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+          📦
+        </span>
         PRODUCTS
       </h1>
 
-      <div className="flex justify-between items-center mb-4">
+      {/* <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Products</h1>
         <button
           onClick={() => {
@@ -223,7 +231,7 @@ const ProductList: React.FC = () => {
         >
           Logout
         </button>
-      </div>
+      </div> */}
 
       <div className='flex flex-col sm:flex-row justify-between gap-4 mb-4 items-stretch sm:items-center'>
         <button
@@ -249,18 +257,41 @@ const ProductList: React.FC = () => {
         </select>
       </div>
 
+      {/* Bulk Creat */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Filters</h1>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowBulkUploadModal(true)}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition duration-200"
+          >
+            Bulk Create
+          </button>
+          <button
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition duration-200"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <input
           type="text"
           placeholder="Filter by Name"
-          className="border px-3 py-2 rounded w-full"
+          className="px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           value={nameFilter}
           onChange={(e) => setNameFilter(e.target.value)}
         />
         <select
-          className="border px-3 py-2 rounded w-full"
+          className="px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
         >
@@ -270,19 +301,19 @@ const ProductList: React.FC = () => {
         <input
           type="number"
           placeholder="Min Price"
-          className="border px-3 py-2 rounded w-full"
+          className="px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           value={priceFilter}
           onChange={(e) => setPriceFilter(e.target.value)}
         />
         <input
           type="number"
           placeholder="Min Stock"
-          className="border px-3 py-2 rounded w-full"
+          className="px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           value={minStockFilter}
           onChange={(e) => setMinStockFilter(e.target.value)}
         />
         <select
-          className="border px-3 py-2 rounded w-full"
+          className="px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           value={brandFilter}
           onChange={(e) => setBrandFilter(e.target.value)}
         >
@@ -290,7 +321,7 @@ const ProductList: React.FC = () => {
           {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
         </select>
         <select
-          className="border px-3 py-2 rounded w-full"
+          className="px-3 py-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"
           value={supplierFilter}
           onChange={(e) => setSupplierFilter(e.target.value)}
         >
@@ -301,13 +332,28 @@ const ProductList: React.FC = () => {
 
       <div className="flex justify-end mb-4">
         <button
-          className="flex items-center gap-2 text-red-500 border border-red-500 px-3 py-2 rounded hover:bg-red-500 hover:text-white"
+          className="flex items-center gap-2 text-red-600 border border-red-600 px-3 py-1 rounded-full hover:bg-red-600 hover:text-white transition duration-200"
           onClick={resetFilters}
         >
           <XCircle className="w-4 h-4" />
           Clear Filters
         </button>
       </div>
+
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">Products</h1>
+        <div className="flex gap-3">
+        </div>
+      </div>
+
+      {/* Render Bulk Create */}
+      {showBulkUploadModal && (
+        <BulkUploadModal
+          onClose={() => setShowBulkUploadModal(false)}
+          onSuccess={fetchProducts}
+        />
+      )}
+
 
       {showAddForm && (
         <AddProductForm
@@ -344,8 +390,8 @@ const ProductList: React.FC = () => {
       )}
 
       {/* Product Table */}
-      {loading ? <div className="text-center py-10">Loading...</div> : <div className="overflow-x-auto">
-        <table className="min-w-full table-auto border">
+      {loading ? <div className="overflow-x-auto">Loading...</div> : <div className="overflow-x-auto">
+        <table className="min-w-full table-auto border-collapse">
           <thead className="bg-gray-200">
             <tr>
               <th className="px-4 py-2 text-left">Name</th>
@@ -365,7 +411,7 @@ const ProductList: React.FC = () => {
           <tbody>
             {products.length > 0 ? (
               products.map(product => (
-                <tr key={product.id} className="border-t">
+                <tr key={product.id} className="hover:bg-gray-100 transition-colors duration-200 border">
                   <td className="px-4 py-2">{product.name || 'N/A'}</td>
                   <td className="px-4 py-2">{product.description || 'N/A'}</td>
                   <td className="px-4 py-2">{product.category || 'N/A'}</td>
@@ -377,10 +423,10 @@ const ProductList: React.FC = () => {
                   <td className="px-4 py-2">{product.tax_rate ? `${product.tax_rate}%` : 'N/A'}</td>
                   <td className="px-4 py-2">{product.track_inventory ? 'Yes' : 'No'}</td>
                   <td className="px-4 py-2">{product.min_stock_level}</td>
-                  <td className="px-4 py-2 flex gap-2 justify-center flex-wrap">
-                    <button onClick={() => setViewingProduct(product)} className="text-blue-500 border border-blue-500 px-2 py-1 rounded hover:bg-blue-500 hover:text-white transition">View</button>
-                    <button onClick={() => setEditingProduct(product)} className="text-green-600 border border-green-600 px-2 py-1 rounded hover:bg-green-600 hover:text-white transition">Edit</button>
-                    <button onClick={() => handleDelete(product.id)} className="text-red-500 border border-red-500 px-2 py-1 rounded hover:bg-red-500 hover:text-white transition">Delete</button>
+                  <td className="px-4 py-5 flex gap-2 justify-center items-center">
+                    <button onClick={() => setViewingProduct(product)} className="text-blue-600 border border-blue-600 hover:bg-blue-600 hover:text-white px-2 py-1 text-sm rounded transition duration-200">👁️ {/*View*/}</button>
+                    <button onClick={() => setEditingProduct(product)} className="text-green-600 border border-green-600 hover:bg-green-600 hover:text-white px-2 py-1 text-sm rounded transition duration-200">✏️ {/*Edit*/}</button>
+                    <button onClick={() => handleDelete(product.id)} className="text-red-600 border border-red-600 hover:bg-red-600 hover:text-white px-2 py-1 text-sm rounded transition duration-200">🗑️ {/*Delete*/}</button>
                   </td>
                 </tr>
               ))

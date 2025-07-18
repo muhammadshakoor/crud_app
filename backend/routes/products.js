@@ -4,6 +4,7 @@ const db = require('../models');
 const { Op } = require('sequelize');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
+
 router.get('/get/products', authenticate, authorize(['admin', 'user']), async (req, res) => {
     try {
         const {
@@ -17,38 +18,34 @@ router.get('/get/products', authenticate, authorize(['admin', 'user']), async (r
             supplier,
         } = req.query;
 
-        const where = {};
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 10;
+        const offset = (pageNum - 1) * limitNum;
 
+        const where = {};
         if (name) where.name = { [Op.iLike]: `%${name}%` };
         if (category) where.category = category;
-        if (brand) where.brand = brand;
+        if (brand) where.brand = { [Op.iLike]: `%${brand}%` };
         if (supplier) where.supplier = supplier;
         if (min_price) where.sale_price = { [Op.gte]: parseFloat(min_price) };
         if (min_stock) where.min_stock_level = { [Op.gte]: parseInt(min_stock, 10) };
 
-        // 1. Get all filtered products (no limit)
-        const allFiltered = await db.products.findAll({ where });
-
-        // 2. Extract unique values for filters
-        const categories = [...new Set(allFiltered.map(p => p.category).filter(Boolean))];
-        const brands = [...new Set(allFiltered.map(p => p.brand).filter(Boolean))];
-        const suppliers = [...new Set(allFiltered.map(p => p.supplier).filter(Boolean))];
-
-        // 3. Paginate manually
-        const total = allFiltered.length;
-        const totalPages = Math.ceil(total / parseInt(limit));
-        const offset = (parseInt(page) - 1) * parseInt(limit);
-        const paginated = allFiltered.slice(offset, offset + parseInt(limit));
-
-        // 4. Return paginated result + full filter data
-        res.json({
-            products: paginated,
-            totalPages,
-            categories,
-            brands,
-            suppliers
+        const { count, rows: products } = await db.products.findAndCountAll({
+            where,
+            offset,
+            limit: limitNum,
+            order: [['createdAt', 'DESC']], // optional: newest first
         });
 
+        const totalPages = Math.ceil(count / limitNum);
+
+        res.json({
+            products,
+            totalPages,
+            categories: [...new Set(products.map(p => p.category).filter(Boolean))],
+            brands: [...new Set(products.map(p => p.brand).filter(Boolean))],
+            suppliers: [...new Set(products.map(p => p.supplier).filter(Boolean))],
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Failed to fetch products' });
@@ -97,7 +94,104 @@ router.delete('/delete/products/:id', authenticate, authorize(['admin']), async 
     }
 });
 
+// Bulk create
+router.post('/bulk-create/products', authenticate, async (req, res) => {
+    try {
+        const products = req.body;
+
+        if (!Array.isArray(products)) {
+            return res.status(400).json({ error: 'Invalid format' });
+        }
+
+        await db.products.bulkCreate(products);
+        res.status(201).json({ message: 'Products created successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Bulk creation failed' });
+    }
+});
+
+
 module.exports = router;
+
+// router.get('/get/products', authenticate, authorize(['admin', 'user']), async (req, res) => {
+//     try {
+//         const {
+//             page = 1,
+//             limit = 10,
+//             name,
+//             category,
+//             min_price,
+//             min_stock,
+//             brand,
+//             supplier,
+//         } = req.query;
+
+//         const pageNum = parseInt(page) || 1;
+//         const limitNum = parseInt(limit) || 10;
+//         const offset = (pageNum - 1) * limitNum;
+
+//         const where = {};
+
+//         if (name) where.name = { [Op.iLike]: `%${name}%` };
+//         if (category) where.category = category;
+//         // if (brand) where.brand = brand;
+//         if (brand) where.brand = { [Op.iLike]: `%${brand}%` };
+//         if (supplier) where.supplier = supplier;
+//         if (min_price) where.sale_price = { [Op.gte]: parseFloat(min_price) };
+//         if (min_stock) where.min_stock_level = { [Op.gte]: parseInt(min_stock, 10) };
+
+//         // 1. Get all filtered products (no limit)
+//         console.log('Filters Applied', where)
+//         // const allFiltered = await db.products.findAll({ where });
+//         const { count, rows: products } = await db.products.findAndCountAll({
+//             where,
+//             offset,
+//             limit: limitNum,
+//             order: [['createdAt', 'DESC']], // optional: newest first
+//         });
+
+//         const totalPages = Math.ceil(count / limitNum);
+//         // 2. Extract unique values for filters
+//         // const categories = [...new Set(allFiltered.map(p => p.category).filter(Boolean))];
+//         // const brands = [...new Set(allFiltered.map(p => p.brand).filter(Boolean))];
+//         // const suppliers = [...new Set(allFiltered.map(p => p.supplier).filter(Boolean))];
+
+//         // 3. Paginate manually
+//         const total = allFiltered.length;
+//         // const totalPages = Math.ceil(total / parseInt(limit));
+//         // const offset = (parseInt(page) - 1) * parseInt(limit);
+//         // const paginated = allFiltered.slice(offset, offset + parseInt(limit));
+//         // const totalPages = Math.ceil(total / limitNum);
+//         // const offset = (pageNum - 1) * limitNum;
+//         const paginated = allFiltered.slice(offset, offset + limitNum);
+
+//         // 4. Return paginated result + full filter data
+//         //         res.json({
+//         //             products: paginated,
+//         //             totalPages,
+//         //             categories,
+//         //             brands,
+//         //             suppliers
+//         //         });
+
+//         //     } catch (error) {
+//         //         console.error(error);
+//         //         res.status(500).json({ error: 'Failed to fetch products' });
+//         //     }
+//         // });
+//         res.json({
+//             products,
+//             totalPages,
+//             categories: [...new Set(products.map(p => p.category).filter(Boolean))],
+//             brands: [...new Set(products.map(p => p.brand).filter(Boolean))],
+//             suppliers: [...new Set(products.map(p => p.supplier).filter(Boolean))],
+//         });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ error: 'Failed to fetch products' });
+//     }
+// });
 
 // Get all products
 // router.get('/', async (req, res) => {

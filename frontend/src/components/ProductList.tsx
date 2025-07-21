@@ -9,9 +9,11 @@ import { useAuth } from '../auth/AuthContext';
 import api from '../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import BulkUploadModal from './BulkUploadModal';
+import { exportBarcodes } from '../utils/exportBarcodes';
 
 const ProductList: React.FC = () => {
   const { token, logout } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +134,23 @@ const ProductList: React.FC = () => {
   //   }
   // };
 
-  const navigate = useNavigate();
+  // Export all barcodes
+  const handleExportAllBarcodes = async () => {
+  try {
+    const response = await api.get('/get/all-products', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const allProducts = response.data;
+    await exportBarcodes(allProducts); // uses your utility
+  } catch (err) {
+    console.error('Failed to export all barcodes:', err);
+    alert('Failed to export barcodes.');
+  }
+};
+
+
+  
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -212,26 +230,12 @@ const ProductList: React.FC = () => {
 
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden p-4 ">
-      {/* <h1 className="text-3xl font-bold text-white mb-4 text-left bg-gray-500 p-3 rounded"> */}
       <h1 className="text-3xl font-extrabold text-gray-800 mb-6 flex items-center gap-2">
         <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
           📦
         </span>
         PRODUCTS
       </h1>
-
-      {/* <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Products</h1>
-        <button
-          onClick={() => {
-            logout();
-            navigate('/login');
-          }}
-          className="bg-red-500 px-4 py-2 text-white rounded hover:bg-red-600"
-        >
-          Logout
-        </button>
-      </div> */}
 
       <div className='flex flex-col sm:flex-row justify-between gap-4 mb-4 items-stretch sm:items-center'>
         <button
@@ -257,7 +261,7 @@ const ProductList: React.FC = () => {
         </select>
       </div>
 
-      {/* Bulk Creat */}
+      {/* Bulk Create */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Filters</h1>
         <div className="flex gap-3">
@@ -267,6 +271,14 @@ const ProductList: React.FC = () => {
           >
             Bulk Create
           </button>
+
+          <button
+            onClick={handleExportAllBarcodes}
+            className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition duration-200"
+          >
+            Export All Barcodes
+          </button>
+
           <button
             onClick={() => {
               logout();

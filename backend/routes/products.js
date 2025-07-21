@@ -4,7 +4,6 @@ const db = require('../models');
 const { Op } = require('sequelize');
 const { authenticate, authorize } = require('../middleware/authMiddleware');
 
-
 router.get('/get/products', authenticate, authorize(['admin', 'user']), async (req, res) => {
     try {
         const {
@@ -52,11 +51,35 @@ router.get('/get/products', authenticate, authorize(['admin', 'user']), async (r
     }
 });
 
+// GET all products without pagination (for exporting)
+router.get('/get/all-products', authenticate, authorize(['admin', 'user']), async (req, res) => {
+    try {
+        const products = await db.products.findAll({
+            order: [['createdAt', 'DESC']]
+        });
+        res.json(products);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to fetch all products' });
+    }
+});
 
+
+// Generate barcode function
+const generateBarcode = () => {
+    return Math.floor(100000000000 + Math.random() * 900000000000).toString();
+};
 
 // POST /api/products
 router.post('/add/products', authenticate, authorize(['admin']), async (req, res) => {
     try {
+        // Auto barcode generate
+        const data = req.body;
+
+        if (!data.barcode) {
+            data.barcode = generateBarcode(); // generate a random barcode if not provided
+        }
+        // ... (rest of the code remains the same)
         const product = await db.products.create(req.body);
         res.status(201).json(product);
     } catch (error) {
@@ -103,7 +126,14 @@ router.post('/bulk-create/products', authenticate, async (req, res) => {
             return res.status(400).json({ error: 'Invalid format' });
         }
 
-        await db.products.bulkCreate(products);
+        // Auto barcode generate
+        const withBarcodes = products.map(product => ({
+            ...product,
+            barcode: product.barcode || generateBarcode(),
+        }));
+
+        // await db.products.bulkCreate(products);
+        await db.products.bulkCreate(withBarcodes);
         res.status(201).json({ message: 'Products created successfully' });
     } catch (err) {
         console.error(err);
